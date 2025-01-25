@@ -10,8 +10,8 @@ from typing import Annotated
 import jwt
 import os
 
-from services.user_service.models import UserBase, Role
-from services.user_service.schemas import User
+from services.user_service.schemas import UserBase, Role
+from services.user_service.models import User
 from services.database import get_session
 
 load_dotenv()

@@ -1,20 +1,15 @@
-from enum import Enum
-from pydantic import BaseModel
+from sqlalchemy import Column, Integer, String, Boolean
+
+from services.user_service.schemas import Role
+from services.database import Base
 
 
-class Role(str, Enum):
-    admin = "admin"
-    user = "user"
+class User(Base):
+    __tablename__ = "users"
 
-
-class UserBase(BaseModel):
-    username: str
-    name: str | None = None
-    role: Role
-    is_active: bool = True
-
-
-class UserCreate(BaseModel):
-    username: str
-    password: str
-    name: str | None = None
+    id = Column(Integer, primary_key=True, index=True)
+    username = Column(String, unique=True, index=True)
+    name = Column(String)
+    role = Column(String, default=Role.user)
+    hashed_password = Column(String)
+    is_active = Column(Boolean, default=True)

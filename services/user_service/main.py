@@ -3,8 +3,8 @@ from typing import Annotated
 from fastapi import APIRouter, Depends, HTTPException, status
 from fastapi.security import OAuth2PasswordRequestForm
 
-from services.user_service.models import UserCreate, UserBase, Role
-from services.user_service.schemas import User
+from services.user_service.schemas import UserCreate, UserBase, Role
+from services.user_service.models import User
 from services.user_service.utils import (
     ACCESS_TOKEN_EXPIRE_MINUTES,
     authenticate_user,

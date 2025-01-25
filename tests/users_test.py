@@ -5,7 +5,7 @@ from sqlalchemy.orm import sessionmaker
 
 from services.database import Base, get_session
 from services.main import app
-from services.user_service.schemas import User
+from services.user_service.models import User
 
 # Test database
 SQLALCHEMY_DATABASE_URL = "sqlite:///./test.db"
