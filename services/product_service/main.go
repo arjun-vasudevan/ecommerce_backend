@@ -2,12 +2,15 @@ package main
 
 import (
     "github.com/arjun-vasudevan/ecommerce_backend/services/product_service/controllers"
+    "github.com/arjun-vasudevan/ecommerce_backend/services/product_service/database"
     "github.com/gin-gonic/gin"
     "github.com/joho/godotenv"
     "os"
 )
 
+
 func main() {
+    database.ConnectDB()
     product_router := gin.Default()
 
     productRoutes := product_router.Group("/api/products")

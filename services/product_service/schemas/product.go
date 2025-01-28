@@ -6,7 +6,7 @@ type ProductCreate struct {
     Name        string  `json:"name" binding:"required"`
     Description *string `json:"description"`
     Price       float32 `json:"price" binding:"required"`
-    Quantity    uint    `json:"quantity" binding:"required"`
+    Quantity    uint    `json:"quantity" binding:"gte=0"`
     Category    *string `json:"category"`
 }
 
@@ -30,4 +30,3 @@ type ProductResponse struct {
     CreatedAt   time.Time `json:"created_at"`
     UpdatedAt   time.Time `json:"updated_at"`
 }
-

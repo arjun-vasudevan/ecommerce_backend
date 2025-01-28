@@ -2,7 +2,10 @@ package controllers
 
 import (
     "github.com/gin-gonic/gin"
+    "github.com/arjun-vasudevan/ecommerce_backend/services/product_service/database"
+    "github.com/arjun-vasudevan/ecommerce_backend/services/product_service/models"
     "github.com/arjun-vasudevan/ecommerce_backend/services/product_service/schemas"
+    "github.com/jinzhu/copier"
     "net/http"
     "strconv"
     "time"
@@ -10,51 +13,47 @@ import (
 )
 
 
-var allProducts = []schemas.ProductResponse{
-    {
-        ID:          1,
-        Name:        "product1",
-        Description: "description1",
-        Price:       10.00,
-        Quantity:    10,
-        Category:    "category1",
-        CreatedAt:   time.Date(2021, 7, 1, 0, 0, 0, 0, time.UTC),
-        UpdatedAt:   time.Date(2021, 7, 1, 0, 0, 0, 0, time.UTC),
-    },
-    {
-        ID:          2,
-        Name:        "product2",
-        Description: "description2",
-        Price:       20.00,
-        Quantity:    20,
-        Category:    "category2",
-        CreatedAt:   time.Date(2021, 7, 2, 0, 0, 0, 0, time.UTC),
-        UpdatedAt:   time.Date(2021, 7, 2, 0, 0, 0, 0, time.UTC),
-    },
-}
-
-
 func GetProducts(c *gin.Context) {
-    c.JSON(http.StatusOK, allProducts)
+    // Retrieve all products from database
+    var allProducts []models.Product
+    if err := database.DB.Find(&allProducts).Error; err != nil {
+        c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+        return
+    }
+
+    var productResponse []schemas.ProductResponse
+
+    for _, product := range allProducts {
+        // Copy product to response schema
+        var productSchema schemas.ProductResponse
+        if err := copier.Copy(&productSchema, &product); err != nil {
+            c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+            return
+        }
+
+        // Append product to response
+        productResponse = append(productResponse, productSchema)
+    }
+
+    c.JSON(http.StatusOK, productResponse)
 }
 
 
 func CreateProduct(c *gin.Context) {
+    // Validate request body
     var productData schemas.ProductCreate
-    if err := c.BindJSON(&productData); err != nil {
+    if err := c.ShouldBindJSON(&productData); err != nil {
         c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
         return
     }
 
-    newProduct := schemas.ProductResponse{
-        ID:          uint64(len(allProducts) + 1),
+    // Create new product
+    newProduct := models.Product{
         Name:        productData.Name,
         Description: "",
         Price:       productData.Price,
         Quantity:    productData.Quantity,
         Category:    "",
-        CreatedAt:   time.Now(),
-        UpdatedAt:   time.Now(),
     }
 
     if productData.Description != nil {
@@ -65,87 +64,119 @@ func CreateProduct(c *gin.Context) {
         newProduct.Category = *productData.Category
     }
 
-    allProducts = append(allProducts, newProduct)
-    c.JSON(http.StatusCreated, newProduct)
+    // Create new product in database
+    if err := database.DB.Create(&newProduct).Error; err != nil {
+        c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+        return
+    }
+
+    // Return new product
+    var productResponse schemas.ProductResponse
+    if err := copier.Copy(&productResponse, &newProduct); err != nil {
+        c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+        return
+    }
+
+    c.JSON(http.StatusOK, productResponse)
 }
 
 
 func GetProduct(c *gin.Context) {
+    // Validate path parameter
     productID, err := strconv.ParseUint(c.Param("id"), 10, 64)
     if err != nil {
         c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid product ID"})
         return
     }
 
-    if productID > uint64(len(allProducts)) {
+    // Retrieve product from database
+    var product models.Product
+    if err := database.DB.First(&product, productID).Error; err != nil {
         c.JSON(http.StatusNotFound, gin.H{"message": "Product not found"})
+        return
         return
     }
 
-    c.JSON(http.StatusOK, allProducts[productID-1])
+    // Return product
+    var productResponse schemas.ProductResponse
+    if err := copier.Copy(&productResponse, &product); err != nil {
+        c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+        return
+    }
+
+    c.JSON(http.StatusOK, productResponse)
 }
 
 
 func UpdateProduct(c *gin.Context) {
-    // Check if valid path parameter
+    // Validate path parameter
     productID, err := strconv.ParseUint(c.Param("id"), 10, 64)
     if err != nil {
         c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid product ID"})
         return
     }
 
-    // Check if productID is valid
-    if productID > uint64(len(allProducts)) {
-        c.JSON(http.StatusNotFound, gin.H{"message": "Product not found"})
-        return
-    }
-
-    // Check if request body is valid
+    // Validate request body
     var productData schemas.ProductUpdate
-    if err := c.BindJSON(&productData); err != nil {
+    if err := c.ShouldBindJSON(&productData); err != nil {
         c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
         return
     }
 
-    productID--
+    // Retrieve existing product from database
+    var product models.Product
+    if err := database.DB.First(&product, productID).Error; err != nil {
+        c.JSON(http.StatusNotFound, gin.H{"message": "Product not found"})
+        return
+    }
 
+    // Update product fields
     if productData.Name != nil {
-        allProducts[productID].Name = *productData.Name
+        product.Name = *productData.Name
     }
     if productData.Description != nil {
-        allProducts[productID].Description = *productData.Description
+        product.Description = *productData.Description
     }
     if productData.Price != nil {
-        allProducts[productID].Price = *productData.Price
+        product.Price = *productData.Price
     }
     if productData.Quantity != nil {
-        allProducts[productID].Quantity = *productData.Quantity
+        product.Quantity = *productData.Quantity
     }
     if productData.Category != nil {
-        allProducts[productID].Category = *productData.Category
+        product.Category = *productData.Category
     }
-    allProducts[productID].UpdatedAt = time.Now()
 
-    c.JSON(http.StatusOK, allProducts[productID])
+    // Save updated product in database
+    if err := database.DB.Save(&product).Error; err != nil {
+        c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+        return
+    }
+
+    // Return updated product
+    var productResponse schemas.ProductResponse
+    if err := copier.Copy(&productResponse, &product); err != nil {
+        c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+        return
+    }
+
+    c.JSON(http.StatusOK, productResponse)
 }
 
 
 func DeleteProduct(c *gin.Context) {
-    // Check if valid path parameter
+    // Validate path parameter
     productID, err := strconv.ParseUint(c.Param("id"), 10, 64)
     if err != nil {
         c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid product ID"})
         return
     }
 
-    // Check if productID is valid
-    if productID > uint64(len(allProducts)) {
-        c.JSON(http.StatusNotFound, gin.H{"message": "Product not found"})
+    // Delete product from database
+    if err := database.DB.Delete(&models.Product{}, productID).Error; err != nil {
+        c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
         return
     }
 
-    allProducts = append(allProducts[:productID - 1], allProducts[productID:]...)
     c.JSON(http.StatusOK, gin.H{"message": fmt.Sprintf("Product with ID %d deleted", productID)})
 }
-
-
