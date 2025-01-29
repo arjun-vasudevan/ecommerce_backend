@@ -2,28 +2,36 @@ package controllers
 
 import (
     "github.com/gin-gonic/gin"
-    "github.com/arjun-vasudevan/ecommerce_backend/services/product_service/database"
     "github.com/arjun-vasudevan/ecommerce_backend/services/product_service/models"
+    "github.com/arjun-vasudevan/ecommerce_backend/services/product_service/repositories"
     "github.com/arjun-vasudevan/ecommerce_backend/services/product_service/schemas"
     "github.com/jinzhu/copier"
     "net/http"
     "strconv"
-    "time"
     "fmt"
 )
 
 
-func GetProducts(c *gin.Context) {
+type ProductController struct {
+    repo repositories.ProductRepository
+}
+
+func NewProductController(repo repositories.ProductRepository) *ProductController {
+    return &ProductController{repo: repo}
+}
+
+
+func (pc *ProductController) GetProducts(c *gin.Context) {
     // Retrieve all products from database
-    var allProducts []models.Product
-    if err := database.DB.Find(&allProducts).Error; err != nil {
+    allProducts, err := pc.repo.ListProducts()
+    if err != nil {
         c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
         return
     }
 
     var productResponse []schemas.ProductResponse
 
-    for _, product := range allProducts {
+    for _, product := range *allProducts {
         // Copy product to response schema
         var productSchema schemas.ProductResponse
         if err := copier.Copy(&productSchema, &product); err != nil {
@@ -39,7 +47,7 @@ func GetProducts(c *gin.Context) {
 }
 
 
-func CreateProduct(c *gin.Context) {
+func (pc *ProductController) CreateProduct(c *gin.Context) {
     // Validate request body
     var productData schemas.ProductCreate
     if err := c.ShouldBindJSON(&productData); err != nil {
@@ -65,7 +73,7 @@ func CreateProduct(c *gin.Context) {
     }
 
     // Create new product in database
-    if err := database.DB.Create(&newProduct).Error; err != nil {
+    if err := pc.repo.Create(&newProduct); err != nil {
         c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
         return
     }
@@ -81,7 +89,7 @@ func CreateProduct(c *gin.Context) {
 }
 
 
-func GetProduct(c *gin.Context) {
+func (pc *ProductController) GetProduct(c *gin.Context) {
     // Validate path parameter
     productID, err := strconv.ParseUint(c.Param("id"), 10, 64)
     if err != nil {
@@ -90,16 +98,15 @@ func GetProduct(c *gin.Context) {
     }
 
     // Retrieve product from database
-    var product models.Product
-    if err := database.DB.First(&product, productID).Error; err != nil {
+    product, err := pc.repo.GetProductByID(productID)
+    if err != nil {
         c.JSON(http.StatusNotFound, gin.H{"message": "Product not found"})
-        return
         return
     }
 
     // Return product
     var productResponse schemas.ProductResponse
-    if err := copier.Copy(&productResponse, &product); err != nil {
+    if err := copier.Copy(&productResponse, product); err != nil {
         c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
         return
     }
@@ -108,7 +115,7 @@ func GetProduct(c *gin.Context) {
 }
 
 
-func UpdateProduct(c *gin.Context) {
+func (pc *ProductController) UpdateProduct(c *gin.Context) {
     // Validate path parameter
     productID, err := strconv.ParseUint(c.Param("id"), 10, 64)
     if err != nil {
@@ -124,8 +131,8 @@ func UpdateProduct(c *gin.Context) {
     }
 
     // Retrieve existing product from database
-    var product models.Product
-    if err := database.DB.First(&product, productID).Error; err != nil {
+    product, err := pc.repo.GetProductByID(productID)
+    if err != nil {
         c.JSON(http.StatusNotFound, gin.H{"message": "Product not found"})
         return
     }
@@ -148,14 +155,14 @@ func UpdateProduct(c *gin.Context) {
     }
 
     // Save updated product in database
-    if err := database.DB.Save(&product).Error; err != nil {
+    if err := pc.repo.Update(product); err != nil {
         c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
         return
     }
 
     // Return updated product
     var productResponse schemas.ProductResponse
-    if err := copier.Copy(&productResponse, &product); err != nil {
+    if err := copier.Copy(&productResponse, product); err != nil {
         c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
         return
     }
@@ -164,7 +171,7 @@ func UpdateProduct(c *gin.Context) {
 }
 
 
-func DeleteProduct(c *gin.Context) {
+func (pc *ProductController) DeleteProduct(c *gin.Context) {
     // Validate path parameter
     productID, err := strconv.ParseUint(c.Param("id"), 10, 64)
     if err != nil {
@@ -173,7 +180,7 @@ func DeleteProduct(c *gin.Context) {
     }
 
     // Delete product from database
-    if err := database.DB.Delete(&models.Product{}, productID).Error; err != nil {
+    if err := pc.repo.Delete(productID); err != nil {
         c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
         return
     }

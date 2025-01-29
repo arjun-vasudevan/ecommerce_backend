@@ -21,7 +21,6 @@ func ConnectDB() {
         log.Fatalf("Error connecting to database: %v", err)
     }
 
-
     if err := db.AutoMigrate(&models.Product{}); err != nil {
         log.Fatalf("Error migrating database: %v", err)
     }
