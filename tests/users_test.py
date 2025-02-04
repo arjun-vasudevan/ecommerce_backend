@@ -2,9 +2,10 @@ import pytest
 from fastapi.testclient import TestClient
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
+from unittest.mock import patch
 
 from services.database import Base, get_session
-from services.main import app
+from services.user_service.main import app
 from services.user_service.models import User
 
 # Test database
@@ -21,6 +22,12 @@ def override_get_session():
     finally:
         db.close()
 
+
+@pytest.fixture(scope="session", autouse=True)
+def mock_postgres_engine():
+    with patch("services.database.get_db_engine") as mock_get_db_engine:
+        mock_get_db_engine.return_value = engine
+        yield
 
 app.dependency_overrides[get_session] = override_get_session
 client = TestClient(app)
