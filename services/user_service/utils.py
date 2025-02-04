@@ -4,7 +4,6 @@ from fastapi.security import OAuth2PasswordBearer
 from jwt.exceptions import InvalidTokenError
 from passlib.context import CryptContext
 from sqlalchemy.orm import Session
-from dotenv import load_dotenv
 from typing import Annotated
 
 import jwt
@@ -14,7 +13,6 @@ from services.user_service.schemas import UserBase, Role
 from services.user_service.models import User
 from services.database import get_session
 
-load_dotenv()
 
 JWT_SECRET_KEY = os.getenv("JWT_SECRET_KEY")
 ALGORITHM = "HS256"

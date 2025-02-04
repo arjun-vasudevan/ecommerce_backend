@@ -1,0 +1,36 @@
+name: ecommerce
+
+services:
+  postgres:
+    image: postgres:15
+    container_name: postgres_container
+    env_file:
+      - path: ./services/user_service/.env
+        required: false
+    ports:
+      - "5432:5432"
+    volumes:
+      - pg_data:/var/lib/postgresql/data
+    networks:
+      - app-network
+
+  user_service:
+    build:
+      context: .
+      dockerfile: ./services/user_service/Dockerfile
+    container_name: user_service_container
+    env_file:
+      - path: ./services/user_service/.env
+        required: false
+    ports:
+      - "8000:8000"
+    depends_on:
+      - postgres
+    networks:
+      - app-network
+
+volumes:
+  pg_data:
+
+networks:
+  app-network:
