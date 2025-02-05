@@ -1,21 +1,74 @@
 from datetime import timedelta
-from typing import Annotated
 from fastapi import APIRouter, Depends, HTTPException, status
-from fastapi.security import OAuth2PasswordRequestForm
+from fastapi.security import OAuth2PasswordBearer, OAuth2PasswordRequestForm
+from jwt.exceptions import InvalidTokenError
+from sqlalchemy.orm import Session
+from typing import Annotated
 
-from services.user_service.schemas import UserCreate, UserBase, Role
-from services.user_service.models import User
-from services.user_service.utils import (
-    ACCESS_TOKEN_EXPIRE_MINUTES,
-    authenticate_user,
+from services.auth_utils import (
     create_access_token,
-    get_current_user,
-    get_user,
+    decode_access_token,
     hash_password,
-    SessionDep,
+    verify_password,
 )
+from services.database import get_session
+from services.user_service.models import User
+from services.user_service.schemas import UserCreate, UserBase, Role
 
+
+ACCESS_TOKEN_EXPIRE_MINUTES = 30
 user_router = APIRouter(prefix="/api/users", tags=["users"])
+oauth2_scheme = OAuth2PasswordBearer(tokenUrl="token")
+SessionDep = Annotated[Session, Depends(get_session)]
+
+
+def get_user(db, username: str) -> User:
+    return db.query(User).filter(User.username == username).first()
+
+
+def authenticate_user(db, username: str, password: str):
+    user = get_user(db, username)
+    if not user:
+        return False
+    if not verify_password(password, user.hashed_password):
+        return False
+    return user
+
+
+async def get_current_user(token: Annotated[str, Depends(oauth2_scheme)], db: SessionDep) -> UserBase:
+    credentials_exception = HTTPException(
+        status_code=status.HTTP_401_UNAUTHORIZED,
+        detail="Could not validate credentials",
+        headers={"WWW-Authenticate": "Bearer"},
+    )
+
+    try:
+        payload = decode_access_token(token)
+        username: str = payload.get("sub")
+        role: str = payload.get("role")
+        if username is None or role is None:
+            raise credentials_exception
+    except InvalidTokenError:
+        raise credentials_exception
+
+    user = get_user(db, username)
+
+    if user is None:
+        raise credentials_exception
+    elif not user.is_active:
+        raise HTTPException(status_code=400, detail="Inactive user")
+
+    return UserBase(
+        username=user.username, name=user.name, role=user.role, is_active=user.is_active
+    )
+
+
+async def get_current_admin(current_user: Annotated[UserBase, Depends(get_current_user)]) -> UserBase:
+    if current_user.role != Role.admin:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN, detail="Not enough permissions"
+        )
+    return current_user
 
 
 # Receives username and password and returns an access token

@@ -22,15 +22,15 @@ def override_get_session():
     finally:
         db.close()
 
+app.dependency_overrides[get_session] = override_get_session
+client = TestClient(app)
+
 
 @pytest.fixture(scope="session", autouse=True)
-def mock_postgres_engine():
+def mock_database_engine():
     with patch("services.database.get_db_engine") as mock_get_db_engine:
         mock_get_db_engine.return_value = engine
         yield
-
-app.dependency_overrides[get_session] = override_get_session
-client = TestClient(app)
 
 
 @pytest.fixture(scope="function")
@@ -106,3 +106,4 @@ def test_get_profile(setup_database):
     data = response.json()
     assert data["username"] == "testuser2"
     assert data["name"] == "Test User 2"
+    assert data["role"] == "user"

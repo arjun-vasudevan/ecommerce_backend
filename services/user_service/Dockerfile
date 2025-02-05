@@ -7,7 +7,7 @@ COPY requirements.txt requirements.txt
 RUN pip install --no-cache-dir -r requirements.txt
 
 COPY /services/user_service/ /app/services/user_service/
-COPY /services/database.py /app/services/database.py
+COPY /services/*.py /app/services/
 
 EXPOSE 8000
 
