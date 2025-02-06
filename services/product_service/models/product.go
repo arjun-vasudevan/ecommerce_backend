@@ -8,7 +8,7 @@ type Product struct {
     Name        string    `gorm:"not null"`
     Description string
     Price       float32   `gorm:"not null"`
-    Quantity    uint      `gorm:"not null"`
+    Stock       uint      `gorm:"not null"`
     Category    string
     CreatedAt   time.Time `gorm:"autoCreateTime"`
     UpdatedAt   time.Time `gorm:"autoUpdateTime"`
