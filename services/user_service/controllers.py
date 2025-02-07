@@ -56,7 +56,7 @@ async def get_current_user(token: Annotated[str, Depends(oauth2_scheme)], db: Se
     if user is None:
         raise credentials_exception
     elif not user.is_active:
-        raise HTTPException(status_code=400, detail="Inactive user")
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Inactive user")
 
     return UserBase(
         username=user.username, name=user.name, role=user.role, is_active=user.is_active
@@ -96,7 +96,7 @@ async def login_for_access_token(form_data: Annotated[OAuth2PasswordRequestForm,
 async def register(new_user: UserCreate, db: SessionDep):
     user = get_user(db, new_user.username)
     if user:
-        raise HTTPException(status_code=400, detail="Username already registered")
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Username already registered")
 
     db_user = User(
         username=new_user.username,
@@ -112,7 +112,7 @@ async def register(new_user: UserCreate, db: SessionDep):
 
     access_token_expires = timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
     access_token = create_access_token(
-        data={"sub": new_user.username, "role": Role.user},
+        data={"sub": db_user.username, "role": db_user.role, "id": db_user.id},
         expires_delta=access_token_expires,
     )
 

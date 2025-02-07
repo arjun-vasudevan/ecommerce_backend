@@ -5,4 +5,5 @@ PyJWT==2.10.1
 python-dotenv==1.0.1
 python-multipart==0.0.20
 SQLAlchemy==2.0.37
+strawberry-graphql[fastapi]==0.258.0
 uvicorn==0.34.0
