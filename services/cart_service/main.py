@@ -1,12 +1,20 @@
-from fastapi import FastAPI, HTTPException, Request
+from contextlib import asynccontextmanager
+from fastapi import Depends, FastAPI, HTTPException, Request
+from sqlalchemy.orm import Session
 from strawberry.fastapi import GraphQLRouter
 
-import strawberry
-
 from services.auth_utils import decode_access_token
+from services.database import Base, engine, get_session
+from services.cart_service.repositories.cart_repository_impl import CartRepositoryImpl
+from services.cart_service.graphql.schema import schema
 
 
-app = FastAPI()
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    Base.metadata.create_all(bind=engine)
+    yield
+
+app = FastAPI(lifespan=lifespan)
 
 @app.middleware("http")
 async def auth_middleware(request: Request, call_next):
@@ -21,13 +29,9 @@ async def auth_middleware(request: Request, call_next):
     return response
 
 
-@strawberry.type
-class Query:
-    @strawberry.field
-    def hello(self, info) -> str:
-        return f"Hello {info.context['request'].state.user}!"
+async def get_context(db: Session = Depends(get_session)):
+    return {"cart_repository": CartRepositoryImpl(db)}
 
-schema = strawberry.Schema(Query)
-graphql_app = GraphQLRouter(schema)
 
+graphql_app = GraphQLRouter(schema=schema, context_getter=get_context)
 app.include_router(graphql_app, prefix="/graphql")
