@@ -1,3 +1,4 @@
+from fastapi import HTTPException
 from strawberry.types import Info
 from typing_extensions import Optional
 
@@ -24,13 +25,13 @@ async def add_item_to_cart(info: Info, product_id: int, quantity: Optional[int])
         # If quantity is 0, remove the item from the cart
         if quantity == 0:
             if not cart:
-                raise Exception("Cart not found")
+                raise HTTPException(status_code=404, detail="Cart not found")
 
             # Get the cart item to remove
             cart_item = cart_repo.get_cart_item(cart.id, product_id)
 
             if not cart_item:
-                raise Exception("Item not found in cart")
+                raise HTTPException(status_code=404, detail="Cart item not found")
 
             cart_repo.remove_item_from_cart(cart_item)
             cart_item.quantity = 0
