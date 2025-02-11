@@ -5,12 +5,13 @@ from typing import List
 @type
 class CartItemType:
     id: int
-    productId: int
+    cart_id: int
+    product_id: int
     quantity: int
 
 
 @type
 class CartType:
     id: int
-    userId: str
+    user_id: str
     items: List[CartItemType]
