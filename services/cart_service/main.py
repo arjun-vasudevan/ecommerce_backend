@@ -1,5 +1,6 @@
 from contextlib import asynccontextmanager
 from fastapi import Depends, FastAPI, HTTPException, Request
+from fastapi.responses import JSONResponse
 from sqlalchemy.orm import Session
 from strawberry.fastapi import GraphQLRouter
 
@@ -23,7 +24,7 @@ async def auth_middleware(request: Request, call_next):
         payload = decode_access_token(token)
         request.state.user = payload["id"]
     except HTTPException as e:
-        raise e
+        return JSONResponse(status_code=e.status_code, content={"detail": e.detail})
 
     response = await call_next(request)
     return response
