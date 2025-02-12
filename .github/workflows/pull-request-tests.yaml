@@ -34,7 +34,6 @@ jobs:
         uses: wearerequired/lint-action@v2
         with:
           auto_fix: true
-          commit: false
           black: true
           gofmt: true
           git_name: Arjun Vasudevan
