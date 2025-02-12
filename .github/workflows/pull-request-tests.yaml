@@ -1,0 +1,26 @@
+name: Pull Request Tests
+
+on:
+  pull_request:
+    branches: ["main", "dev"]
+    types: [opened, edited, synchronize, reopened]
+
+  workflow_dispatch:
+
+
+jobs:
+  lint:
+    name: Lint Code
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Super-linter
+        uses: super-linter/super-linter@v7
+        env:
+          VALIDATE_ALL_CODEBASE: false
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
