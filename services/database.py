@@ -5,6 +5,7 @@ from sqlalchemy.orm import declarative_base, sessionmaker
 
 Base = declarative_base()
 
+
 def get_database_url():
     load_dotenv(os.path.join(os.path.dirname(__file__), "user_service", ".env"))
     POSTGRES_USER = os.getenv("POSTGRES_USER")
@@ -21,6 +22,7 @@ def get_db_engine(database_url, *args, **kwargs):
 
 engine = None
 SessionLocal = None
+
 
 def setup_database():
     global engine, SessionLocal

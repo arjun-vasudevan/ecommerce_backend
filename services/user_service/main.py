@@ -12,6 +12,7 @@ from services.user_service.controllers import user_router
 async def lifespan(app: FastAPI):
     setup_database()
     from services.database import engine
+
     Base.metadata.create_all(bind=engine)
     yield
 

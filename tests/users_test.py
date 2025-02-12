@@ -9,7 +9,9 @@ from services.user_service.models import User
 
 # Test database
 SQLALCHEMY_DATABASE_URL = "sqlite:///test.db"
-test_engine = create_engine(SQLALCHEMY_DATABASE_URL, connect_args={"check_same_thread": False})
+test_engine = create_engine(
+    SQLALCHEMY_DATABASE_URL, connect_args={"check_same_thread": False}
+)
 TestingSessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=test_engine)
 db = TestingSessionLocal()
 test_modules = {}
@@ -30,15 +32,18 @@ def mock_postgres_engine():
         mock_get_db_engine.return_value = test_engine
 
         from services.user_service.main import app
-        test_modules['app'] = app
+
+        test_modules["app"] = app
 
         app.dependency_overrides[get_session] = override_get_session
 
         yield
 
+
 @pytest.fixture(scope="session")
 def client():
-    return TestClient(test_modules['app'])
+    return TestClient(test_modules["app"])
+
 
 @pytest.fixture(autouse=True)
 def setup_database():
