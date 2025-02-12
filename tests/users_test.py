@@ -10,7 +10,9 @@ from services.user_service.models import User
 
 # Test database
 SQLALCHEMY_DATABASE_URL = "sqlite:///./test.db"
-engine = create_engine(SQLALCHEMY_DATABASE_URL, connect_args={"check_same_thread": False})
+engine = create_engine(
+    SQLALCHEMY_DATABASE_URL, connect_args={"check_same_thread": False}
+)
 TestingSessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 
 
@@ -29,6 +31,7 @@ def mock_postgres_engine():
         mock_get_db_engine.return_value = engine
         yield
 
+
 app.dependency_overrides[get_session] = override_get_session
 client = TestClient(app)
 
@@ -43,7 +46,11 @@ def setup_database():
 def test_register_user(setup_database):
     response = client.post(
         "/api/users/register",
-        json={"username": "testuser0", "password": "testpassword", "name": "Test User 0"}
+        json={
+            "username": "testuser0",
+            "password": "testpassword",
+            "name": "Test User 0",
+        },
     )
 
     assert response.status_code == 200
@@ -62,7 +69,11 @@ def test_register_user(setup_database):
 def test_registered_user_duplicate(setup_database):
     response = client.post(
         "/api/users/register",
-        json={"username": "testuser1", "password": "testpassword", "name": "Test User 1"}
+        json={
+            "username": "testuser1",
+            "password": "testpassword",
+            "name": "Test User 1",
+        },
     )
 
     assert response.status_code == 200
@@ -73,7 +84,7 @@ def test_registered_user_duplicate(setup_database):
     # Try to register the same user again
     response = client.post(
         "/api/users/register",
-        json={"username": "testuser1", "password": "testpassword"}
+        json={"username": "testuser1", "password": "testpassword"},
     )
 
     assert response.status_code == 400
@@ -89,7 +100,11 @@ def test_registered_user_duplicate(setup_database):
 def test_get_profile(setup_database):
     response = client.post(
         "/api/users/register",
-        json={"username": "testuser2", "password": "testpassword", "name": "Test User 2"}
+        json={
+            "username": "testuser2",
+            "password": "testpassword",
+            "name": "Test User 2",
+        },
     )
 
     assert response.status_code == 200
@@ -98,8 +113,7 @@ def test_get_profile(setup_database):
 
     # Get the profile
     response = client.get(
-        "/api/users/profile",
-        headers={"Authorization": f"Bearer {access_token}"}
+        "/api/users/profile", headers={"Authorization": f"Bearer {access_token}"}
     )
 
     assert response.status_code == 200

@@ -57,7 +57,9 @@ def authenticate_user(db, username: str, password: str):
     return user
 
 
-async def get_current_user(token: Annotated[str, Depends(oauth2_scheme)], db: SessionDep) -> UserBase:
+async def get_current_user(
+    token: Annotated[str, Depends(oauth2_scheme)], db: SessionDep
+) -> UserBase:
     credentials_exception = HTTPException(
         status_code=status.HTTP_401_UNAUTHORIZED,
         detail="Could not validate credentials",
@@ -85,7 +87,9 @@ async def get_current_user(token: Annotated[str, Depends(oauth2_scheme)], db: Se
     )
 
 
-async def get_current_admin(current_user: Annotated[UserBase, Depends(get_current_user)]) -> UserBase:
+async def get_current_admin(
+    current_user: Annotated[UserBase, Depends(get_current_user)],
+) -> UserBase:
     if current_user.role != Role.admin:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN, detail="Not enough permissions"
