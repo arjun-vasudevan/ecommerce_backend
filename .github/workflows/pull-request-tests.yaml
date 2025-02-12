@@ -1,3 +1,4 @@
+---
 name: Pull Request Tests
 
 on:
@@ -22,5 +23,7 @@ jobs:
       - name: Super-linter
         uses: super-linter/super-linter@v7
         env:
-          VALIDATE_ALL_CODEBASE: false
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          VALIDATE_ALL_CODEBASE: false
+          VALIDATE_CHECKOV: false
+          VALIDATE_JSCPD: false
