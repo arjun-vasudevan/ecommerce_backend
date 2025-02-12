@@ -10,20 +10,32 @@ on:
 
 
 jobs:
-  lint:
+  run-linters:
     name: Lint Code
     runs-on: ubuntu-latest
 
     steps:
       - name: Checkout Repository
         uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
 
-      - name: Super-linter
-        uses: super-linter/super-linter@v7
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          VALIDATE_ALL_CODEBASE: false
-          VALIDATE_CHECKOV: false
-          VALIDATE_JSCPD: false
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: "pip"
+
+      - name: Install Dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+          pip install autopep8 black flake8
+
+      - name: Run Linters
+        uses: wearerequired/lint-action@v2
+        with:
+          auto_fix: true
+          autopep8: true
+          black: true
+          flake8: true
+          flake8_auto_fix: false
+          gofmt: true
