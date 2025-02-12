@@ -20,7 +20,9 @@ user_router = APIRouter(prefix="/api/users", tags=["users"])
 
 # Receives username and password and returns an access token
 @user_router.post("/token")
-async def login_for_access_token(form_data: Annotated[OAuth2PasswordRequestForm, Depends()], db: SessionDep) -> dict:
+async def login_for_access_token(
+    form_data: Annotated[OAuth2PasswordRequestForm, Depends()], db: SessionDep
+) -> dict:
     user = authenticate_user(db, form_data.username, form_data.password)
     if user is None:
         raise HTTPException(

@@ -5,13 +5,16 @@ from sqlalchemy.orm import sessionmaker
 from unittest.mock import patch
 
 from services.database import Base, get_session
-from services.user_service.main import app
 from services.user_service.models import User
 
 # Test database
-SQLALCHEMY_DATABASE_URL = "sqlite:///./test.db"
-engine = create_engine(SQLALCHEMY_DATABASE_URL, connect_args={"check_same_thread": False})
-TestingSessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
+SQLALCHEMY_DATABASE_URL = "sqlite:///test.db"
+test_engine = create_engine(
+    SQLALCHEMY_DATABASE_URL, connect_args={"check_same_thread": False}
+)
+TestingSessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=test_engine)
+db = TestingSessionLocal()
+test_modules = {}
 
 
 # Use test database
@@ -26,24 +29,37 @@ def override_get_session():
 @pytest.fixture(scope="session", autouse=True)
 def mock_postgres_engine():
     with patch("services.database.get_db_engine") as mock_get_db_engine:
-        mock_get_db_engine.return_value = engine
+        mock_get_db_engine.return_value = test_engine
+
+        from services.user_service.main import app
+
+        test_modules["app"] = app
+
+        app.dependency_overrides[get_session] = override_get_session
+
         yield
 
-app.dependency_overrides[get_session] = override_get_session
-client = TestClient(app)
+
+@pytest.fixture(scope="session")
+def client():
+    return TestClient(test_modules["app"])
 
 
-@pytest.fixture(scope="function")
+@pytest.fixture(autouse=True)
 def setup_database():
-    Base.metadata.create_all(bind=engine)
+    Base.metadata.create_all(bind=test_engine)
     yield
-    Base.metadata.drop_all(bind=engine)
+    Base.metadata.drop_all(bind=test_engine)
 
 
-def test_register_user(setup_database):
+def test_register_user(client):
     response = client.post(
         "/api/users/register",
-        json={"username": "testuser0", "password": "testpassword", "name": "Test User 0"}
+        json={
+            "username": "testuser0",
+            "password": "testpassword",
+            "name": "Test User 0",
+        },
     )
 
     assert response.status_code == 200
@@ -52,17 +68,20 @@ def test_register_user(setup_database):
     assert data["token_type"] == "bearer"
 
     # Verify the user is in the database
-    db = TestingSessionLocal()
     user = db.query(User).filter(User.username == "testuser0").first()
     assert user is not None
     assert user.username == "testuser0"
     assert user.name == "Test User 0"
 
 
-def test_registered_user_duplicate(setup_database):
+def test_registered_user_duplicate(client):
     response = client.post(
         "/api/users/register",
-        json={"username": "testuser1", "password": "testpassword", "name": "Test User 1"}
+        json={
+            "username": "testuser1",
+            "password": "testpassword",
+            "name": "Test User 1",
+        },
     )
 
     assert response.status_code == 200
@@ -73,7 +92,7 @@ def test_registered_user_duplicate(setup_database):
     # Try to register the same user again
     response = client.post(
         "/api/users/register",
-        json={"username": "testuser1", "password": "testpassword"}
+        json={"username": "testuser1", "password": "testpassword"},
     )
 
     assert response.status_code == 400
@@ -81,15 +100,18 @@ def test_registered_user_duplicate(setup_database):
     assert data["detail"] == "Username already registered"
 
     # Ensure only one user is in the database
-    db = TestingSessionLocal()
     users = db.query(User).all()
     assert len(users) == 1
 
 
-def test_get_profile(setup_database):
+def test_get_profile(client):
     response = client.post(
         "/api/users/register",
-        json={"username": "testuser2", "password": "testpassword", "name": "Test User 2"}
+        json={
+            "username": "testuser2",
+            "password": "testpassword",
+            "name": "Test User 2",
+        },
     )
 
     assert response.status_code == 200
@@ -98,8 +120,7 @@ def test_get_profile(setup_database):
 
     # Get the profile
     response = client.get(
-        "/api/users/profile",
-        headers={"Authorization": f"Bearer {access_token}"}
+        "/api/users/profile", headers={"Authorization": f"Bearer {access_token}"}
     )
 
     assert response.status_code == 200
