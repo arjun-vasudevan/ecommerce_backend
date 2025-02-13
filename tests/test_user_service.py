@@ -1,58 +1,13 @@
-import pytest
 from fastapi.testclient import TestClient
-from sqlalchemy import create_engine
-from sqlalchemy.orm import sessionmaker
-from unittest.mock import patch
 
-from services.database import Base, get_session
+from services.user_service.main import app
 from services.user_service.models import User
 
-# Test database
-SQLALCHEMY_DATABASE_URL = "sqlite:///test.db"
-test_engine = create_engine(
-    SQLALCHEMY_DATABASE_URL, connect_args={"check_same_thread": False}
-)
-TestingSessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=test_engine)
-db = TestingSessionLocal()
-test_modules = {}
+
+client = TestClient(app)
 
 
-# Use test database
-def override_get_session():
-    try:
-        db = TestingSessionLocal()
-        yield db
-    finally:
-        db.close()
-
-
-@pytest.fixture(scope="session", autouse=True)
-def mock_postgres_engine():
-    with patch("services.database.get_db_engine") as mock_get_db_engine:
-        mock_get_db_engine.return_value = test_engine
-
-        from services.user_service.main import app
-
-        test_modules["app"] = app
-
-        app.dependency_overrides[get_session] = override_get_session
-
-        yield
-
-
-@pytest.fixture(scope="session")
-def client():
-    return TestClient(test_modules["app"])
-
-
-@pytest.fixture(autouse=True)
-def setup_database():
-    Base.metadata.create_all(bind=test_engine)
-    yield
-    Base.metadata.drop_all(bind=test_engine)
-
-
-def test_register_user(client):
+def test_register_user(db):
     response = client.post(
         "/api/users/register",
         json={
@@ -74,7 +29,7 @@ def test_register_user(client):
     assert user.name == "Test User 0"
 
 
-def test_registered_user_duplicate(client):
+def test_registered_user_duplicate(db):
     response = client.post(
         "/api/users/register",
         json={
@@ -104,7 +59,7 @@ def test_registered_user_duplicate(client):
     assert len(users) == 1
 
 
-def test_get_profile(client):
+def test_get_profile():
     response = client.post(
         "/api/users/register",
         json={
@@ -127,3 +82,4 @@ def test_get_profile(client):
     data = response.json()
     assert data["username"] == "testuser2"
     assert data["name"] == "Test User 2"
+    assert data["role"] == "user"

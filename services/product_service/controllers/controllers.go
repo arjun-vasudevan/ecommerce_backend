@@ -57,7 +57,7 @@ func (pc *ProductController) CreateProduct(c *gin.Context) {
 		Name:        productData.Name,
 		Description: "",
 		Price:       productData.Price,
-		Quantity:    productData.Quantity,
+		Stock:       productData.Stock,
 		Category:    "",
 	}
 
@@ -142,8 +142,8 @@ func (pc *ProductController) UpdateProduct(c *gin.Context) {
 	if productData.Price != nil {
 		product.Price = *productData.Price
 	}
-	if productData.Quantity != nil {
-		product.Quantity = *productData.Quantity
+	if productData.Stock != nil {
+		product.Stock = *productData.Stock
 	}
 	if productData.Category != nil {
 		product.Category = *productData.Category

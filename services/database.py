@@ -7,7 +7,7 @@ Base = declarative_base()
 
 
 def get_database_url():
-    load_dotenv(os.path.join(os.path.dirname(__file__), "user_service", ".env"))
+    load_dotenv()
     POSTGRES_USER = os.getenv("POSTGRES_USER")
     POSTGRES_PASSWORD = os.getenv("POSTGRES_PASSWORD")
     POSTGRES_HOST = os.getenv("POSTGRES_HOST")
