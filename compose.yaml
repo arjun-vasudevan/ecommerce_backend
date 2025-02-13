@@ -5,7 +5,7 @@ services:
     image: postgres:15
     container_name: postgres_container
     env_file:
-      - path: ./services/user_service/.env
+      - path: ./services/.env
         required: false
     ports:
       - "5432:5432"
@@ -20,7 +20,7 @@ services:
       dockerfile: ./services/user_service/Dockerfile
     container_name: user_service_container
     env_file:
-      - path: ./services/user_service/.env
+      - path: ./services/.env
         required: false
     ports:
       - "8000:8000"
@@ -43,6 +43,25 @@ services:
         required: false
     ports:
       - "8001:8001"
+    depends_on:
+      - postgres
+    networks:
+      - app-network
+    deploy:
+      restart_policy:
+        condition: on-failure
+        max_attempts: 5
+
+  cart_service:
+    build:
+      context: .
+      dockerfile: ./services/cart_service/Dockerfile
+    container_name: cart_service_container
+    env_file:
+      - path: ./services/.env
+        required: false
+    ports:
+      - "8002:8002"
     depends_on:
       - postgres
     networks:
