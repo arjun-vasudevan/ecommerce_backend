@@ -1,47 +1,32 @@
 from contextlib import contextmanager
-
-import pytest
 from fastapi.testclient import TestClient
-from sqlalchemy.orm import sessionmaker
+from pytest import fixture
 from unittest.mock import patch
 
 from services.cart_service.main import app
 from services.cart_service.models.models import Cart, CartItem
-from services.database import get_session
-from tests.conftest import engine
 
 
-TestingSessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
-db = TestingSessionLocal()
-
-# Use test database
-def override_get_session():
-    try:
-        db = TestingSessionLocal()
-        yield db
-    finally:
-        db.close()
-
-app.dependency_overrides[get_session] = override_get_session
 client = TestClient(app)
-
 
 # Fixtures --------------------------------------------------------------------
 
-@pytest.fixture(scope="function", autouse=True)
-def populate_database(setup_database):
+
+@fixture(autouse=True)
+def populate_database(setup_database, db):
     carts = [Cart(user_id=1), Cart(user_id=2)]
     cart_items = [
         CartItem(cart_id=1, product_id=100, quantity=55),
         CartItem(cart_id=1, product_id=101, quantity=10),
-        CartItem(cart_id=2, product_id=200, quantity=12)
+        CartItem(cart_id=2, product_id=200, quantity=12),
     ]
 
     db.add_all(carts)
     db.add_all(cart_items)
     db.commit()
 
-@pytest.fixture(scope="session")
+
+@fixture(scope="session")
 def mock_jwt_decode():
 
     @contextmanager
@@ -52,9 +37,11 @@ def mock_jwt_decode():
 
     return _mock_jwt_decode
 
-@pytest.fixture(scope="session")
+
+@fixture(scope="session")
 def query():
-    return {"query": """query Cart {
+    return {
+        "query": """query Cart {
         cart {
             id
             userId
@@ -64,9 +51,11 @@ def query():
                 quantity
             }
         }
-    }"""}
+    }"""
+    }
 
-@pytest.fixture(scope="session")
+
+@fixture(scope="session")
 def mutation():
     def _mutation(product_id, quantity=None):
         return f"""mutation AddItem {{
@@ -83,17 +72,22 @@ def mutation():
 
 # Query tests --------------------------------------------------------------
 
+
 def test_get_cart(mock_jwt_decode, query):
     with mock_jwt_decode(user_id=2):
         response = client.post(
-            "/graphql",
-            json=query,
-            headers={"Authorization": "Bearer token"}
+            "/graphql", json=query, headers={"Authorization": "Bearer token"}
         )
 
-    expected_response = {'data': {
-        'cart': {'id': 2, 'userId': '2', 'items': [{'id': 3, 'productId': 200, 'quantity': 12}]}
-    }}
+    expected_response = {
+        "data": {
+            "cart": {
+                "id": 2,
+                "userId": "2",
+                "items": [{"id": 3, "productId": 200, "quantity": 12}],
+            }
+        }
+    }
 
     assert response.status_code == 200
     data = response.json()
@@ -103,12 +97,10 @@ def test_get_cart(mock_jwt_decode, query):
 def test_get_null_cart(mock_jwt_decode, query):
     with mock_jwt_decode(user_id=3):
         response = client.post(
-            "/graphql",
-            json=query,
-            headers={"Authorization": "Bearer token"}
+            "/graphql", json=query, headers={"Authorization": "Bearer token"}
         )
 
-    expected_response = {'data': {'cart': None}}
+    expected_response = {"data": {"cart": None}}
 
     assert response.status_code == 200
     data = response.json()
@@ -117,19 +109,20 @@ def test_get_null_cart(mock_jwt_decode, query):
 
 # Mutation tests --------------------------------------------------------------
 
-def test_add_new_item_to_new_cart(mock_jwt_decode, mutation):
+
+def test_add_new_item_to_new_cart(mock_jwt_decode, mutation, db):
     new_user = 3
     with mock_jwt_decode(user_id=new_user):
         mutation_query = mutation(product_id=300, quantity=5)
         response = client.post(
             "/graphql",
             json={"query": mutation_query},
-            headers={"Authorization": "Bearer token"}
+            headers={"Authorization": "Bearer token"},
         )
 
-    expected_response = {'data': {
-        'addCartItem': {'id': 4, 'cartId': 3, 'productId': 300, 'quantity': 5}
-    }}
+    expected_response = {
+        "data": {"addCartItem": {"id": 4, "cartId": 3, "productId": 300, "quantity": 5}}
+    }
 
     assert response.status_code == 200
     data = response.json()
@@ -143,19 +136,19 @@ def test_add_new_item_to_new_cart(mock_jwt_decode, mutation):
     assert new_cart.items[0].quantity == 5
 
 
-def test_add_new_item_to_existing_cart(mock_jwt_decode, mutation):
+def test_add_new_item_to_existing_cart(mock_jwt_decode, mutation, db):
     user_id = 1
     with mock_jwt_decode(user_id=user_id):
         mutation_query = mutation(product_id=102, quantity=3)
         response = client.post(
             "/graphql",
             json={"query": mutation_query},
-            headers={"Authorization": "Bearer token"}
+            headers={"Authorization": "Bearer token"},
         )
 
-    expected_response = {'data': {
-        'addCartItem': {'id': 4, 'cartId': 1, 'productId': 102, 'quantity': 3}
-    }}
+    expected_response = {
+        "data": {"addCartItem": {"id": 4, "cartId": 1, "productId": 102, "quantity": 3}}
+    }
 
     assert response.status_code == 200
     data = response.json()
@@ -169,7 +162,7 @@ def test_add_new_item_to_existing_cart(mock_jwt_decode, mutation):
     assert cart.items[2].quantity == 3
 
 
-def test_update_to_specific_quantity(mock_jwt_decode, mutation):
+def test_update_to_specific_quantity(mock_jwt_decode, mutation, db):
     user_id = 2
     cart = db.query(Cart).filter(Cart.user_id == user_id).first()
     assert cart.items[0].quantity == 12
@@ -179,12 +172,14 @@ def test_update_to_specific_quantity(mock_jwt_decode, mutation):
         response = client.post(
             "/graphql",
             json={"query": mutation_query},
-            headers={"Authorization": "Bearer token"}
+            headers={"Authorization": "Bearer token"},
         )
 
-    expected_response = {'data': {
-        'addCartItem': {'id': 3, 'cartId': 2, 'productId': 200, 'quantity': 18}
-    }}
+    expected_response = {
+        "data": {
+            "addCartItem": {"id": 3, "cartId": 2, "productId": 200, "quantity": 18}
+        }
+    }
 
     assert response.status_code == 200
     data = response.json()
@@ -198,19 +193,19 @@ def test_update_to_specific_quantity(mock_jwt_decode, mutation):
     assert cart.items[0].quantity == 18
 
 
-def test_set_default_quantity_to_one(mock_jwt_decode, mutation):
+def test_set_default_quantity_to_one(mock_jwt_decode, mutation, db):
     user_id = 3
     with mock_jwt_decode(user_id=user_id):
         mutation_query = mutation(product_id=300)
         response = client.post(
             "/graphql",
             json={"query": mutation_query},
-            headers={"Authorization": "Bearer token"}
+            headers={"Authorization": "Bearer token"},
         )
 
-    expected_response = {'data': {
-        'addCartItem': {'id': 4, 'cartId': 3, 'productId': 300, 'quantity': 1}
-    }}
+    expected_response = {
+        "data": {"addCartItem": {"id": 4, "cartId": 3, "productId": 300, "quantity": 1}}
+    }
 
     assert response.status_code == 200
     data = response.json()
@@ -224,7 +219,7 @@ def test_set_default_quantity_to_one(mock_jwt_decode, mutation):
     assert cart.items[0].quantity == 1
 
 
-def test_increment_quantity_by_one(mock_jwt_decode, mutation):
+def test_increment_quantity_by_one(mock_jwt_decode, mutation, db):
     user_id = 1
     cart = db.query(Cart).filter(Cart.user_id == user_id).first()
     assert cart.items[0].quantity == 55
@@ -234,12 +229,14 @@ def test_increment_quantity_by_one(mock_jwt_decode, mutation):
         response = client.post(
             "/graphql",
             json={"query": mutation_query},
-            headers={"Authorization": "Bearer token"}
+            headers={"Authorization": "Bearer token"},
         )
 
-    expected_response = {'data': {
-        'addCartItem': {'id': 1, 'cartId': 1, 'productId': 100, 'quantity': 56}
-    }}
+    expected_response = {
+        "data": {
+            "addCartItem": {"id": 1, "cartId": 1, "productId": 100, "quantity": 56}
+        }
+    }
 
     assert response.status_code == 200
     data = response.json()
@@ -253,14 +250,14 @@ def test_increment_quantity_by_one(mock_jwt_decode, mutation):
     assert cart.items[0].quantity == 56
 
 
-def test_remove_item_from_non_existent_cart(mock_jwt_decode, mutation):
+def test_remove_item_from_non_existent_cart(mock_jwt_decode, mutation, db):
     user_id = 3
     with mock_jwt_decode(user_id=user_id):
         mutation_query = mutation(product_id=300, quantity=0)
         response = client.post(
             "/graphql",
             json={"query": mutation_query},
-            headers={"Authorization": "Bearer token"}
+            headers={"Authorization": "Bearer token"},
         )
 
     assert response.status_code == 200
@@ -276,14 +273,14 @@ def test_remove_item_from_non_existent_cart(mock_jwt_decode, mutation):
     assert cart is None
 
 
-def test_remove_non_existent_item_from_cart(mock_jwt_decode, mutation):
+def test_remove_non_existent_item_from_cart(mock_jwt_decode, mutation, db):
     user_id = 1
     with mock_jwt_decode(user_id=user_id):
         mutation_query = mutation(product_id=103, quantity=0)
         response = client.post(
             "/graphql",
             json={"query": mutation_query},
-            headers={"Authorization": "Bearer token"}
+            headers={"Authorization": "Bearer token"},
         )
 
     assert response.status_code == 200
@@ -300,7 +297,7 @@ def test_remove_non_existent_item_from_cart(mock_jwt_decode, mutation):
     assert len(cart.items) == 2
 
 
-def test_remove_item_from_cart(mock_jwt_decode, mutation):
+def test_remove_item_from_cart(mock_jwt_decode, mutation, db):
     user_id = 1
     cart = db.query(Cart).filter(Cart.user_id == user_id).first()
     assert len(cart.items) == 2
@@ -310,12 +307,12 @@ def test_remove_item_from_cart(mock_jwt_decode, mutation):
         response = client.post(
             "/graphql",
             json={"query": mutation_query},
-            headers={"Authorization": "Bearer token"}
+            headers={"Authorization": "Bearer token"},
         )
 
-    expected_response = {'data': {
-        'addCartItem': {'id': 2, 'cartId': 1, 'productId': 101, 'quantity': 0}
-    }}
+    expected_response = {
+        "data": {"addCartItem": {"id": 2, "cartId": 1, "productId": 101, "quantity": 0}}
+    }
 
     assert response.status_code == 200
     data = response.json()
@@ -326,7 +323,7 @@ def test_remove_item_from_cart(mock_jwt_decode, mutation):
     assert len(cart.items) == 1
 
 
-def test_remove_last_item_from_cart(mock_jwt_decode, mutation):
+def test_remove_last_item_from_cart(mock_jwt_decode, mutation, db):
     user_id = 2
     cart = db.query(Cart).filter(Cart.user_id == user_id).first()
     assert len(cart.items) == 1
@@ -336,12 +333,12 @@ def test_remove_last_item_from_cart(mock_jwt_decode, mutation):
         response = client.post(
             "/graphql",
             json={"query": mutation_query},
-            headers={"Authorization": "Bearer token"}
+            headers={"Authorization": "Bearer token"},
         )
 
-    expected_response = {'data': {
-        'addCartItem': {'id': 3, 'cartId': 2, 'productId': 200, 'quantity': 0}
-    }}
+    expected_response = {
+        "data": {"addCartItem": {"id": 3, "cartId": 2, "productId": 200, "quantity": 0}}
+    }
 
     assert response.status_code == 200
     data = response.json()

@@ -1,32 +1,20 @@
-import pytest
 from fastapi.testclient import TestClient
-from sqlalchemy.orm import sessionmaker
 
-from services.database import Base, get_session
 from services.user_service.main import app
 from services.user_service.models import User
-from tests.conftest import engine
 
 
-TestingSessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
-db = TestingSessionLocal()
-
-# Use test database
-def override_get_session():
-    try:
-        db = TestingSessionLocal()
-        yield db
-    finally:
-        db.close()
-
-app.dependency_overrides[get_session] = override_get_session
 client = TestClient(app)
 
 
-def test_register_user():
+def test_register_user(db):
     response = client.post(
         "/api/users/register",
-        json={"username": "testuser0", "password": "testpassword", "name": "Test User 0"}
+        json={
+            "username": "testuser0",
+            "password": "testpassword",
+            "name": "Test User 0",
+        },
     )
 
     assert response.status_code == 200
@@ -41,10 +29,14 @@ def test_register_user():
     assert user.name == "Test User 0"
 
 
-def test_registered_user_duplicate():
+def test_registered_user_duplicate(db):
     response = client.post(
         "/api/users/register",
-        json={"username": "testuser1", "password": "testpassword", "name": "Test User 1"}
+        json={
+            "username": "testuser1",
+            "password": "testpassword",
+            "name": "Test User 1",
+        },
     )
 
     assert response.status_code == 200
@@ -55,7 +47,7 @@ def test_registered_user_duplicate():
     # Try to register the same user again
     response = client.post(
         "/api/users/register",
-        json={"username": "testuser1", "password": "testpassword"}
+        json={"username": "testuser1", "password": "testpassword"},
     )
 
     assert response.status_code == 400
@@ -70,7 +62,11 @@ def test_registered_user_duplicate():
 def test_get_profile():
     response = client.post(
         "/api/users/register",
-        json={"username": "testuser2", "password": "testpassword", "name": "Test User 2"}
+        json={
+            "username": "testuser2",
+            "password": "testpassword",
+            "name": "Test User 2",
+        },
     )
 
     assert response.status_code == 200
@@ -79,8 +75,7 @@ def test_get_profile():
 
     # Get the profile
     response = client.get(
-        "/api/users/profile",
-        headers={"Authorization": f"Bearer {access_token}"}
+        "/api/users/profile", headers={"Authorization": f"Bearer {access_token}"}
     )
 
     assert response.status_code == 200

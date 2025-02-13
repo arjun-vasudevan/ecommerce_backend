@@ -23,11 +23,16 @@ class CartRepositoryImpl(CartRepository):
         self.db.delete(cart)
         self.db.flush()
 
-
     def get_cart_item(self, cart_id: int, product_id: int) -> Optional[CartItem]:
-        return self.db.query(CartItem).filter(CartItem.cart_id == cart_id, CartItem.product_id == product_id).first()
+        return (
+            self.db.query(CartItem)
+            .filter(CartItem.cart_id == cart_id, CartItem.product_id == product_id)
+            .first()
+        )
 
-    def add_item_to_cart(self, cart_id: int, product_id: int, quantity: int) -> CartItem:
+    def add_item_to_cart(
+        self, cart_id: int, product_id: int, quantity: int
+    ) -> CartItem:
         cart_item = CartItem(cart_id=cart_id, product_id=product_id, quantity=quantity)
         self.db.add(cart_item)
         self.db.flush()

@@ -17,13 +17,14 @@ class CartRepository(ABC):
     def delete_cart(self, cart: Cart) -> None:
         pass
 
-
     @abstractmethod
     def get_cart_item(self, cart_id: int, product_id: int) -> Optional[CartItem]:
         pass
 
     @abstractmethod
-    def add_item_to_cart(self, user_id: str, product_id: int, quantity: int) -> CartItem:
+    def add_item_to_cart(
+        self, user_id: str, product_id: int, quantity: int
+    ) -> CartItem:
         pass
 
     @abstractmethod

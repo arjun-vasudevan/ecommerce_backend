@@ -35,7 +35,9 @@ def authenticate_user(db, username: str, password: str):
     return user
 
 
-async def get_current_user(token: Annotated[str, Depends(oauth2_scheme)], db: SessionDep) -> UserBase:
+async def get_current_user(
+    token: Annotated[str, Depends(oauth2_scheme)], db: SessionDep
+) -> UserBase:
     credentials_exception = HTTPException(
         status_code=status.HTTP_401_UNAUTHORIZED,
         detail="Could not validate credentials",
@@ -56,14 +58,18 @@ async def get_current_user(token: Annotated[str, Depends(oauth2_scheme)], db: Se
     if user is None:
         raise credentials_exception
     elif not user.is_active:
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Inactive user")
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST, detail="Inactive user"
+        )
 
     return UserBase(
         username=user.username, name=user.name, role=user.role, is_active=user.is_active
     )
 
 
-async def get_current_admin(current_user: Annotated[UserBase, Depends(get_current_user)]) -> UserBase:
+async def get_current_admin(
+    current_user: Annotated[UserBase, Depends(get_current_user)],
+) -> UserBase:
     if current_user.role != Role.admin:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN, detail="Not enough permissions"
@@ -73,7 +79,9 @@ async def get_current_admin(current_user: Annotated[UserBase, Depends(get_curren
 
 # Receives username and password and returns an access token
 @user_router.post("/token")
-async def login_for_access_token(form_data: Annotated[OAuth2PasswordRequestForm, Depends()], db: SessionDep) -> dict:
+async def login_for_access_token(
+    form_data: Annotated[OAuth2PasswordRequestForm, Depends()], db: SessionDep
+) -> dict:
     user = authenticate_user(db, form_data.username, form_data.password)
     if user is None:
         raise HTTPException(
@@ -96,7 +104,10 @@ async def login_for_access_token(form_data: Annotated[OAuth2PasswordRequestForm,
 async def register(new_user: UserCreate, db: SessionDep):
     user = get_user(db, new_user.username)
     if user:
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Username already registered")
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Username already registered",
+        )
 
     db_user = User(
         username=new_user.username,

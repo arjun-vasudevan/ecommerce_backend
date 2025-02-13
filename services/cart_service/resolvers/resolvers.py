@@ -12,7 +12,9 @@ async def get_cart(info: Info) -> CartType:
     return cart_repo.get_cart_by_user_id(user_id)
 
 
-async def add_item_to_cart(info: Info, product_id: int, quantity: Optional[int]) -> CartItemType:
+async def add_item_to_cart(
+    info: Info, product_id: int, quantity: Optional[int]
+) -> CartItemType:
     # TODO: simplify this logic, too messy rn
 
     user_id = info.context["request"].state.user
@@ -45,9 +47,8 @@ async def add_item_to_cart(info: Info, product_id: int, quantity: Optional[int])
                 id=cart_item.id,
                 cart_id=cart_item.cart_id,
                 product_id=cart_item.product_id,
-                quantity=cart_item.quantity
+                quantity=cart_item.quantity,
             )
-
 
         # Create cart if it doesn't exist
         if not cart:
@@ -71,5 +72,5 @@ async def add_item_to_cart(info: Info, product_id: int, quantity: Optional[int])
         id=cart_item.id,
         cart_id=cart_item.cart_id,
         product_id=cart_item.product_id,
-        quantity=cart_item.quantity
+        quantity=cart_item.quantity,
     )

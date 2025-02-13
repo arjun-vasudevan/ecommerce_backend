@@ -15,7 +15,9 @@ class Query:
 class Mutation:
 
     @mutation()
-    async def add_cart_item(self, info: Info, product_id: int, quantity: Optional[int] = None) -> CartItemType:
+    async def add_cart_item(
+        self, info: Info, product_id: int, quantity: Optional[int] = None
+    ) -> CartItemType:
         return await add_item_to_cart(info, product_id, quantity)
 
 
