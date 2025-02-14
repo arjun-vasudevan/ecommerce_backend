@@ -11,7 +11,7 @@ from services.auth_utils import (
     hash_password,
     verify_password,
 )
-from services.database import get_session
+from services.database import get_user_session
 from services.user_service.models import User
 from services.user_service.schemas import UserCreate, UserBase, Role
 
@@ -19,7 +19,7 @@ from services.user_service.schemas import UserCreate, UserBase, Role
 ACCESS_TOKEN_EXPIRE_MINUTES = 30
 user_router = APIRouter(prefix="/api/users", tags=["users"])
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="token")
-SessionDep = Annotated[Session, Depends(get_session)]
+SessionDep = Annotated[Session, Depends(get_user_session)]
 
 
 def get_user(db, username: str) -> User:
@@ -28,10 +28,21 @@ def get_user(db, username: str) -> User:
 
 def authenticate_user(db, username: str, password: str):
     user = get_user(db, username)
+
     if not user:
-        return False
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Username not found, please register",
+            headers={"WWW-Authenticate": "Bearer"},
+        )
+
     if not verify_password(password, user.hashed_password):
-        return False
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Incorrect password",
+            headers={"WWW-Authenticate": "Bearer"},
+        )
+
     return user
 
 
@@ -82,17 +93,15 @@ async def get_current_admin(
 async def login_for_access_token(
     form_data: Annotated[OAuth2PasswordRequestForm, Depends()], db: SessionDep
 ) -> dict:
-    user = authenticate_user(db, form_data.username, form_data.password)
-    if user is None:
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Incorrect username or password",
-            headers={"WWW-Authenticate": "Bearer"},
-        )
+
+    try:
+        user = authenticate_user(db, form_data.username, form_data.password)
+    except HTTPException as e:
+        raise e
 
     access_token_expires = timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
     access_token = create_access_token(
-        data={"sub": user.username, "role": user.role},
+        data={"sub": user.username, "role": user.role, "id": user.id},
         expires_delta=access_token_expires,
     )
 
