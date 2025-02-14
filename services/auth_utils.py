@@ -3,11 +3,11 @@ from dotenv import load_dotenv
 from fastapi import HTTPException, status
 from jwt import encode, decode
 from jwt.exceptions import InvalidTokenError
-from os import getenv
+from os import getenv, path
 from passlib.context import CryptContext
 
 
-load_dotenv()
+load_dotenv(path.join(path.dirname(__file__), ".env"))
 JWT_SECRET_KEY = getenv("JWT_SECRET_KEY")
 ALGORITHM = "HS256"
 

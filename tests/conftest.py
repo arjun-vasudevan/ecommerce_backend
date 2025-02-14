@@ -13,9 +13,9 @@ test_engine = create_engine(
 
 @fixture()
 def db():
-    session = next(get_session())
-    yield session
-    session.close()
+    db = next(get_session("test"))
+    yield db
+    db.close()
 
 
 @fixture(scope="session", autouse=True)

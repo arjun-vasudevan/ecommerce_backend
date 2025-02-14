@@ -5,17 +5,14 @@ from sqlalchemy.orm import Session
 from strawberry.fastapi import GraphQLRouter
 
 from services.auth_utils import decode_access_token
-from services.database import Base, get_session, setup_database
+from services.database import get_cart_session, setup_database
 from services.cart_service.repositories.cart_repository_impl import CartRepositoryImpl
 from services.cart_service.graphql.schema import schema
 
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    setup_database()
-    from services.database import engine
-
-    Base.metadata.create_all(bind=engine)
+    setup_database("cart_service")
     yield
 
 
@@ -35,7 +32,7 @@ async def auth_middleware(request: Request, call_next):
     return response
 
 
-async def get_context(db: Session = Depends(get_session)):
+async def get_context(db: Session = Depends(get_cart_session)):
     return {"cart_repository": CartRepositoryImpl(db)}
 
 
