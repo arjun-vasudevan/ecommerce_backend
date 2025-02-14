@@ -1,0 +1,13 @@
+#!/bin/bash
+set -e
+
+psql -v ON_ERROR_STOP=1 --username "$POSTGRES_USER" <<-EOSQL
+	CREATE DATABASE ecommerce_user;
+	GRANT ALL PRIVILEGES ON DATABASE ecommerce_user TO $POSTGRES_USER;
+
+	CREATE DATABASE ecommerce_product;
+	GRANT ALL PRIVILEGES ON DATABASE ecommerce_product TO $POSTGRES_USER;
+
+	CREATE DATABASE ecommerce_cart;
+	GRANT ALL PRIVILEGES ON DATABASE ecommerce_cart TO $POSTGRES_USER;
+EOSQL
