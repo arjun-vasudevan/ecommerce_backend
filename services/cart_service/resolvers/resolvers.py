@@ -4,6 +4,10 @@ from strawberry.types import Info
 from typing_extensions import Optional
 
 from services.cart_service.graphql.types import CartType, CartItemType
+from services.cart_service.resolvers.cache_utils import (
+    cache_product,
+    get_cached_product,
+)
 
 
 async def get_cart(info: Info) -> CartType:
@@ -13,15 +17,24 @@ async def get_cart(info: Info) -> CartType:
     return cart_repo.get_cart_by_user_id(user_id)
 
 
-async def validate_product_id(product_id: int, quantity: Optional[int]):
+async def validate_product_id(product_id: int):
+    if product_info := get_cached_product(product_id):
+        return product_info
+
     async with AsyncClient() as client:
         # TODO: change URL
-        response = await client.get(f"http://product_service:8001/api/products/{product_id}")
+        response = await client.get(
+            f"http://product_service:8001/api/products/{product_id}"
+        )
 
     if response.status_code != 200:
-        raise HTTPException(status_code=404, detail=f"Product ID {product_id} not found")
+        raise HTTPException(
+            status_code=404, detail=f"Product ID {product_id} not found"
+        )
 
-    return response.json()
+    product_info = response.json()
+    cache_product(product_id, product_info)
+    return product_info
 
 
 async def add_item_to_cart(
@@ -32,14 +45,15 @@ async def add_item_to_cart(
     user_id = info.context["request"].state.user
     cart_repo = info.context["cart_repository"]
 
+    # Check if it is a valid product
     try:
-        product_info = await validate_product_id(product_id, quantity)
+        product_info = await validate_product_id(product_id)
     except HTTPException as e:
         raise e
 
     with cart_repo.db.begin():
         # Retrieve the cart for the authenticated user
-        cart = cart_repo.get_cart_by_user_id(user_id)
+        cart = await get_cart(info)
 
         # If quantity is 0, remove the item from the cart
         if quantity == 0:
@@ -47,17 +61,14 @@ async def add_item_to_cart(
                 raise HTTPException(status_code=404, detail="Cart does not exist")
 
             # Get the cart item to remove
-            cart_item = cart_repo.get_cart_item(cart.id, product_id)
-
-            if not cart_item:
+            if not (cart_item := cart_repo.get_cart_item(cart.id, product_id)):
                 raise HTTPException(status_code=404, detail="Cart item does not exist")
 
             cart_repo.remove_item_from_cart(cart_item)
             cart_item.quantity = 0
 
             # If the cart is empty, delete it
-            remaining_items = cart_repo.get_cart_by_user_id(user_id).items
-            if not remaining_items:
+            if not cart.items:
                 cart_repo.delete_cart(cart)
 
             return CartItemType(
@@ -80,7 +91,10 @@ async def add_item_to_cart(
 
         # Check if there is enough stock
         if quantity > product_info["stock"]:
-            raise HTTPException(status_code=400, detail=f"Insufficient stock for product {product_id}, only {product_info['stock']} available")
+            raise HTTPException(
+                status_code=400,
+                detail=f"Insufficient stock for product ID {product_id}, only {product_info['stock']} available",
+            )
 
         # Update or create the cart item
         if cart_item:
