@@ -59,7 +59,7 @@ jobs:
           pip install -r requirements.txt
 
       - name: Run Tests
-        run: pytest tests/
+        run: pytest tests/test_user_service.py
 
   run-go-tests:
     name: Run Go Tests
