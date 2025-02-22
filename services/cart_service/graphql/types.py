@@ -13,5 +13,5 @@ class CartItemType:
 @type
 class CartType:
     id: int
-    user_id: str
+    user_id: int
     items: List[CartItemType]

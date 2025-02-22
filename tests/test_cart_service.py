@@ -83,7 +83,7 @@ def test_get_cart(mock_jwt_decode, query):
         "data": {
             "cart": {
                 "id": 2,
-                "userId": "2",
+                "userId": 2,
                 "items": [{"id": 3, "productId": 200, "quantity": 12}],
             }
         }
