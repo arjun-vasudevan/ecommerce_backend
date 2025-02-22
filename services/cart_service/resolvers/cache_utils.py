@@ -2,7 +2,8 @@ import json
 
 from redis import Redis
 
-redis_client = Redis(host="host.docker.internal", port=6379, db=0)
+
+redis_client = Redis(host="redis", port=6379, db=0)
 
 
 def cache_product(product_id: int, product_info: dict, ttl=3600):
